@@ -15,9 +15,11 @@ export class PaymentService {
             where: { id: appointmentId },
             include: { doctor: true, patient: { include: { user: true } } },
         });
+
         if (!appointment) throw new AppError('Appointment not found', 404);
 
-        const amount = appointment.doctor.fee * 100; // Convert to paise
+        const amount = appointment.doctor.fee * 100;
+
         const order = await razorpay.orders.create({
             amount,
             currency: 'INR',
@@ -48,6 +50,7 @@ export class PaymentService {
         razorpaySignature: string;
     }) {
         const body = data.razorpayOrderId + '|' + data.razorpayPaymentId;
+
         const expectedSignature = crypto
             .createHmac('sha256', config.razorpay.keySecret)
             .update(body)
@@ -57,7 +60,7 @@ export class PaymentService {
             throw new AppError('Payment verification failed', 400);
         }
 
-        const payment = await prisma.payment.update({
+        const payment = await prisma.payment.updateMany({
             where: { razorpayOrderId: data.razorpayOrderId },
             data: {
                 razorpayPaymentId: data.razorpayPaymentId,
@@ -66,12 +69,19 @@ export class PaymentService {
             },
         });
 
-        // Confirm the appointment after payment
+        const updatedPayment = await prisma.payment.findFirst({
+            where: { razorpayOrderId: data.razorpayOrderId },
+        });
+
+        if (!updatedPayment) {
+            throw new AppError('Payment not found', 404);
+        }
+
         await prisma.appointment.update({
-            where: { id: payment.appointmentId },
+            where: { id: updatedPayment.appointmentId },
             data: { status: 'CONFIRMED' },
         });
 
-        return payment;
+        return updatedPayment;
     }
 }
