@@ -1,0 +1,210 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PATIENT
+  DOCTOR
+  ADMIN
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  REJECTED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password      String?
+  name          String
+  phone         String?
+  avatar        String?
+  role          Role      @default(PATIENT)
+  isVerified    Boolean   @default(false)
+  isActive      Boolean   @default(true)
+  googleId      String?   @unique
+  otp           String?
+  otpExpiresAt  DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  doctor        Doctor?
+  patient       Patient?
+  sentMessages  Message[] @relation("SentMessages")
+  reviews       Review[]  @relation("ReviewAuthor")
+
+  @@map("users")
+}
+
+model Doctor {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialization    String
+  qualification     String
+  experience        Int
+  fee               Float
+  bio               String?
+  licenseNumber     String
+  isApproved        Boolean  @default(false)
+  rating            Float    @default(0)
+  totalReviews      Int      @default(0)
+  availableSlots    Json     @default("[]")
+  consultationDuration Int   @default(30)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  appointments      Appointment[]
+  prescriptions     Prescription[]
+  reviews           Review[]
+
+  @@map("doctors")
+}
+
+model Patient {
+  id            String    @id @default(uuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dateOfBirth   DateTime?
+  gender        Gender?
+  bloodGroup    String?
+  allergies     String?
+  medicalHistory String?
+  address       String?
+  emergencyContact String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  appointments  Appointment[]
+  prescriptions Prescription[]
+  reports       Report[]
+  reviews       Review[]
+
+  @@map("patients")
+}
+
+model Appointment {
+  id            String            @id @default(uuid())
+  patientId     String
+  patient       Patient           @relation(fields: [patientId], references: [id])
+  doctorId      String
+  doctor        Doctor            @relation(fields: [doctorId], references: [id])
+  dateTime      DateTime
+  endTime       DateTime
+  status        AppointmentStatus @default(PENDING)
+  type          String            @default("video")
+  symptoms      String?
+  notes         String?
+  roomId        String?
+  recordingUrl  String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  payment       Payment?
+  prescription  Prescription?
+  messages      Message[]
+
+  @@map("appointments")
+}
+
+model Prescription {
+  id              String   @id @default(uuid())
+  appointmentId   String   @unique
+  appointment     Appointment @relation(fields: [appointmentId], references: [id])
+  doctorId        String
+  doctor          Doctor   @relation(fields: [doctorId], references: [id])
+  patientId       String
+  patient         Patient  @relation(fields: [patientId], references: [id])
+  diagnosis       String
+  medications     Json
+  instructions    String?
+  followUpDate    DateTime?
+  pdfUrl          String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("prescriptions")
+}
+
+model Message {
+  id              String      @id @default(uuid())
+  appointmentId   String?
+  appointment     Appointment? @relation(fields: [appointmentId], references: [id])
+  senderId        String
+  sender          User        @relation("SentMessages", fields: [senderId], references: [id])
+  receiverId      String
+  content         String
+  type            String      @default("text")
+  fileUrl         String?
+  isRead          Boolean     @default(false)
+  createdAt       DateTime    @default(now())
+
+  @@map("messages")
+}
+
+model Report {
+  id          String   @id @default(uuid())
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id])
+  title       String
+  type        String
+  fileUrl     String
+  analysis    String?
+  uploadedAt  DateTime @default(now())
+
+  @@map("reports")
+}
+
+model Payment {
+  id              String        @id @default(uuid())
+  appointmentId   String        @unique
+  appointment     Appointment   @relation(fields: [appointmentId], references: [id])
+  amount          Float
+  currency        String        @default("INR")
+  razorpayOrderId String?
+  razorpayPaymentId String?
+  razorpaySignature String?
+  status          PaymentStatus @default(PENDING)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@map("payments")
+}
+
+model Review {
+  id          String   @id @default(uuid())
+  doctorId    String
+  doctor      Doctor   @relation(fields: [doctorId], references: [id])
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id])
+  authorId    String
+  author      User     @relation("ReviewAuthor", fields: [authorId], references: [id])
+  rating      Int
+  comment     String?
+  createdAt   DateTime @default(now())
+
+  @@map("reviews")
+}
