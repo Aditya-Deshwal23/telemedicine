@@ -69,15 +69,14 @@ app.use(errorHandler);
 // Initialize Socket.io
 initializeSocket(io);
 
-// IMPORTANT: Railway-compatible port binding
-const PORT = Number(process.env.PORT || 5000);
+// FIXED PORT BINDING (Railway compatible)
+const PORT = Number(process.env.PORT) || 5000;
 
 server.listen(PORT, '0.0.0.0', () => {
-    console.log('PORT ENV =', process.env.PORT);
-    console.log(`Server running on port ${PORT}`);
-});
-server.listen(Number(PORT), '0.0.0.0', () => {
-    logger.info(`Server running on port ${PORT} in ${config.nodeEnv} mode`);
+    console.log('=================================');
+    console.log('ENV PORT:', process.env.PORT);
+    console.log('Server running on port:', PORT);
+    console.log('=================================');
 });
 
 // Graceful shutdown
