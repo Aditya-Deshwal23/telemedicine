@@ -27,6 +27,11 @@ import { initializeSocket } from './socket';
 
 export const prisma = new PrismaClient();
 const app = express();
+
+// Trust first proxy to ensure rate limiting works correctly 
+// behind reverse proxies like Railway, Render, or Heroku
+app.set('trust proxy', 1);
+
 const server = http.createServer(app);
 
 // Socket.io setup
